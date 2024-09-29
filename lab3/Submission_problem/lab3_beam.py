@@ -51,7 +51,7 @@ def gen_sucessors(node,clause):
         elif temp[i]==1:
             temp[i]=0
         new_node= Node(state=temp)
-        val=heuristic_value_2(clause,new_node)
+        val=heuristic_value_1(clause,new_node)
         if val>max:
             max=val
             max_node=new_node
@@ -105,26 +105,30 @@ def beam(clause,k,m,n,max_iter=1000,beam_width=3):
         print("Solution found")
         print(f"Solution is{node.state}")
         print(f"Steps required to reach solution are: 0")
-        return node
+        return True
+    count=0
     sucessors=generate_successors(node,clause,beam_width)
     for i in range(max_iter):
         new_sucessors=[]
+        if(sucessors==[]):
+            print("Local minima reached")
+            return False
         for sucessor in sucessors:
             if check(clause,sucessor):
+                count+=1
+                print(count)
                 print("Solution found")
                 print(f"Solution is{sucessor.state}")
                 print(f"Steps required to reach solution are: {i+1}")
-                if(node==None):
-                    print("Local minima reached")
-                    return None
                 return sucessor
             temp=gen_sucessors(sucessor,clause)
             new_sucessors.append(temp)
+        
         sucessors=new_sucessors
             
             
 clause=generate_k_sat_problem(3,6,4)
-print(clause)
+#print(clause)
 # print(hill_climb(clause,3,6,6))
 #print(calculate_penetrance(5,3,6,6))
-print(beam(clause,5,6,6,3))
+print(calculate_penetrance(20,3,25,25))        
