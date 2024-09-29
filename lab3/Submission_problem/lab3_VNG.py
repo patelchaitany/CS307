@@ -28,6 +28,8 @@ def heuristic_value_2(clause, node):
 #this function will check if the node is the solution or not
 def check(clause, node):
     count=0
+    if node ==None:
+        return False
     for curr_clause in clause:
         for i in curr_clause:
             if i>0 and node.state[i-1]==1:
@@ -43,7 +45,7 @@ def check(clause, node):
 def gen_1(node,clause):
     max=-1
     max_node=node
-    i=random.randint(0,len(node.state)-1)
+    count=0
     for i in range(len(node.state)):
         temp=node.state.copy()
         if temp[i]==0:
@@ -55,7 +57,13 @@ def gen_1(node,clause):
         if val>max:
             max=val
             max_node=new_node
-    if max_node.state==node.state:
+        else:
+            count+=1
+    # if max_node.state == node.state :
+    #     print("yes")
+    #     return None
+    if count== len(node.state):
+        print("yes")
         return None
     return max_node
 def gen_2(node, clause, num_neighbors=10):
@@ -137,6 +145,7 @@ def calculate_penetrance(num_instances, k, m, n):
     return penetrance
     
 def hill_climb(clause,node,gen_func, k,m,n,max_iter=1000):
+    prev_node=node
     for i in range(max_iter):
         if check(clause,node):
             print(f"clause is {clause}")
@@ -144,11 +153,19 @@ def hill_climb(clause,node,gen_func, k,m,n,max_iter=1000):
             print(f"Solution is{node.state}")
             print(f"Steps required to reach solution {i}")
             return node
-        temp_node=gen_func(node,clause)
-        if(temp_node==None):
+        if(node==None):
             print("Local minima reached")
-            return node
+            print(prev_node.state)
+            return prev_node
+        temp_node=gen_func(node,clause)
+        prev_node=node
+        # if(temp_node==None):
+        #     print("Local minima reached")
+        #     print(prev_node.state)
+        #     return node
+        
         node=temp_node
+    return node
 def vgn(clause, k,m,n):
     #node = Node([random.choice([0, 1]) for _ in range(n)])
     node=Node([0]*n)
@@ -158,20 +175,26 @@ def vgn(clause, k,m,n):
         print(f"Solution is{node.state}")
         print(f"Node reached after gen_1")
         return node
+    print("GEEn 2")
+    print(node.state)
     node=hill_climb(clause,node,gen_2,k,m,n)
     if(check(clause,node)):
         print("Solution found")
         print(f"Solution is{node.state}")
         print(f"Node reached after gen_2")
         return node
+    print("GEEn 3")
     node=hill_climb(clause,node,gen_3,k,m,n)
     if(check(clause,node)):
         print("Solution found")
         print(f"Solution is{node.state}")
         print(f"Node reached after gen_3")
         return node
-clause=generate_k_sat_problem(3,6,4)
-clause=[(1, 2, 3), (-1, -2, 3), (1, -2, -3)]
-print(clause)
-print(vgn(clause,3,3,3))
-#print(calculate_penetrance(5,3,6,6))
+    if(check(clause,node)): 
+        return True
+    else:
+        return False
+clause=generate_k_sat_problem(3,75,75)
+#print(clause)
+# print(vgn(clause,3,75,75))
+print(calculate_penetrance(20,3,10,10))
