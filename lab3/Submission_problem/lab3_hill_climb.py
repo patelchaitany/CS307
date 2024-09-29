@@ -80,14 +80,15 @@ def hill_climb(clause, k,m,n,max_iter=1000):
             print("Solution found")
             print(f"Solution is{node.state}")
             print(f"Steps required to reach solution {i}")
-            return node
+            return True
         node=gen_sucessors(node,clause)
         if(node==None):
             print("Local minima reached")
-            return None
+            return False
+    return False
 
 
-clause=generate_k_sat_problem(3,6,4)
+clause=generate_k_sat_problem(3,100,100)
 print(clause)
 # print(hill_climb(clause,3,6,6))
-print(calculate_penetrance(5,3,6,6))
+print(calculate_penetrance(20,3,50,50))
