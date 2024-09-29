@@ -7,6 +7,8 @@ import copy
 from tqdm import tqdm
 
 from collections import deque
+import time  # For tracking time
+import psutil
 
 
 def load_octave_column_matrix(file_path):
@@ -230,14 +232,19 @@ def calculate_gradients(image, threshold=100):
     :param image: Input image.
     :return: Gradients in x and y directions and their sum.
     """
+    # Convert to grayscale
     gray = image
+    # Calculate the gradient in the x direction
     grad_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
 
+    # Calculate the gradient in the y direction
     grad_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
     magnitude = np.sqrt(grad_x**2 + grad_y**2)
 
+    # Apply the threshold filter: Set gradients below the threshold to 0
     grad_x[magnitude < threshold] = 0
     grad_y[magnitude < threshold] = 0
+    # Sum the absolute gradients for all pixels
     grad_sum = np.sqrt(np.sum(np.abs(grad_x)) + np.sum(np.abs(grad_y)))
 
     return grad_sum
@@ -249,15 +256,18 @@ def simulated_annealing(grid, patches, value):
     current_score = value_function(current_grid, patches)
     best_score = current_score
 
-    initial_temp = 10
+    initial_temp = 1000
     final_temp = 1
     alpha = 0.995  # Cooling rate
     temp = initial_temp
-
+    iterations = 0
     while temp > final_temp:
+        iterations += 1
+        # Select two random cells in the grid to swap
         x1, y1 = random.randint(0, 3), random.randint(0, 3)
         x2, y2 = random.randint(0, 3), random.randint(0, 3)
 
+        # Swap the values in the grid
         current_grid[x1][y1], current_grid[x2][y2] = (
             current_grid[x2][y2],
             current_grid[x1][y1],
@@ -265,6 +275,7 @@ def simulated_annealing(grid, patches, value):
 
         new_score = value_function(current_grid, patches)
 
+        # Decide whether to accept the new solution
         if new_score < current_score or random.uniform(0, 1) < math.exp(
             (current_score - new_score) / temp
         ):
@@ -273,14 +284,16 @@ def simulated_annealing(grid, patches, value):
                 best_score = current_score
                 best_grid = copy.deepcopy(current_grid)
         else:
+            # Revert the swap if not accepted
             current_grid[x1][y1], current_grid[x2][y2] = (
                 current_grid[x2][y2],
                 current_grid[x1][y1],
             )
 
+        # Cool down
         temp *= alpha
 
-    return best_grid, best_score
+    return best_grid, best_score, iterations
 
 
 if __name__ == "__main__":
@@ -292,6 +305,8 @@ if __name__ == "__main__":
     patch, state_mat = create_patch(images)
     final_grid = None
     final_score = float("inf")
+    start_time = time.time()
+    iterations = 0
     for i in range(16):
         grid = [[-1 for _ in range(4)] for _ in range(4)]
         grid[0][0] = i
@@ -301,8 +316,9 @@ if __name__ == "__main__":
         new_grid = copy.deepcopy(grid)
         new_img = reconstruct_image(patch, new_grid)
         score = calculate_gradients(new_img)
-        final_grid_1, new_score = simulated_annealing(new_grid, patch, score)
+        final_grid_1, new_score, iter = simulated_annealing(new_grid, patch, score)
         if score < final_score:
+            iterations = iter
             final_grid = grid
             final_score = score
 
@@ -311,5 +327,11 @@ if __name__ == "__main__":
         if new_score < final_score:
             final_grid = final_grid_1
             final_score = new_score
+        process = psutil.Process()
+    total_time = time.time() - start_time
+    memory_usage = process.memory_info().rss / (1024 * 1024)
+    print(f"Number of iteration required {iterations}")
+    print(f"Time required: {total_time:.2f} seconds")
+    print(f"Memory usage: {memory_usage:.2f} MB")
     best_img = reconstruct_image(patch, final_grid)
     image(best_img)
