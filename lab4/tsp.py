@@ -1,129 +1,104 @@
 import numpy as np
 import random
+import matplotlib.pyplot as plt
 
-tourist_locations = [
-    "Jaipur",
-    "Jodhpur",
-    "Udaipur",
-    "Bikaner",
-    "Ajmer",
-    "Mount Abu",
-    "Pushkar",
-    "Jaisalmer",
-    "Bundi",
-    "Alwar",
-    "Chittorgarh",
-    "Kota",
-    "Ranthambore",
-    "Bharatpur",
-    "Sawai Madhopur",
-    "Pali",
-    "Nagaur",
-    "Bhilwara",
-    "Barmer",
-    "Jalore",
-]
-
-np.random.seed(42)
-num_locations = len(tourist_locations)
-dist_matrix = np.random.randint(50, 500, size=(num_locations, num_locations))
-np.fill_diagonal(dist_matrix, 0)
+locations = {
+    "Jaipur": (26.9124, 75.7873),
+    "Udaipur": (24.5854, 73.7125),
+    "Jodhpur": (26.2389, 73.0243),
+    "Ajmer": (26.4499, 74.6399),
+    "Jaisalmer": (26.9157, 70.9083),
+    "Bikaner": (28.0229, 73.3119),
+    "Mount Abu": (24.5926, 72.7156),
+    "Pushkar": (26.4899, 74.5521),
+    "Bharatpur": (27.2176, 77.4895),
+    "Kota": (25.2138, 75.8648),
+    "Chittorgarh": (24.8887, 74.6269),
+    "Alwar": (27.5665, 76.6250),
+    "Ranthambore": (26.0173, 76.5026),
+    "Sariska": (27.3309, 76.4154),
+    "Mandawa": (28.0524, 75.1416),
+    "Dungarpur": (23.8430, 73.7142),
+    "Bundi": (25.4305, 75.6499),
+    "Sikar": (27.6094, 75.1399),
+    "Nagaur": (27.2020, 73.7336),
+    "Shekhawati": (27.6485, 75.5455),
+}
 
 
-def get_cost(tour, dist_matrix):
-    """Calculate the total distance of the given tour."""
-    if len(tour) <= 1:
-        return 0
-    return sum(dist_matrix[tour[i], tour[i + 1]] for i in range(len(tour) - 1))
+def euclidean_distance(coord1, coord2):
+    return np.linalg.norm(np.array(coord1) - np.array(coord2))
 
 
-def get_successor(tour):
-    """Generate a neighboring solution by swapping two cities in the tour."""
-    if len(tour) < 2:
-        return tour
-    successor = tour.copy()
-    idx1, idx2 = random.sample(range(len(successor)), 2)
-    successor[idx1], successor[idx2] = successor[idx2], successor[idx1]
-    return successor
+N = len(locations)
+cities = list(locations.keys())
+D = np.zeros((N, N))
+
+for i in range(N):
+    for j in range(i + 1, N):
+        D[i, j] = euclidean_distance(locations[cities[i]], locations[cities[j]])
+        D[j, i] = D[i, j]
 
 
-def hill_climb_expand(tour, remaining_cities, dist_matrix):
-    """Expand the current tour by adding the best city from the remaining cities using Hill Climbing."""
-    best_tour = None
-    best_cost = float("inf")
-
-    for city in remaining_cities:
-        new_tour = tour + [city]
-        new_cost = get_cost(new_tour, dist_matrix)
-        if new_cost < best_cost:
-            best_tour = new_tour
-            best_cost = new_cost
-
-    return best_tour, best_cost
+def path_cost_tour(tour, distance_matrix):
+    cost = 0
+    for i in range(len(tour) - 1):
+        cost += distance_matrix[tour[i], tour[i + 1]]
+    cost += distance_matrix[tour[-1], tour[0]]
+    return cost
 
 
-# Simulated Annealing algorithm
-def simulated_annealing(
-    tour, dist_matrix, initial_temperature, cooling_rate, max_iterations
-):
-    """Apply Simulated Annealing to escape local minima and find a better solution."""
-    current_tour = tour
-    current_cost = get_cost(current_tour, dist_matrix)
-
-    best_tour = current_tour.copy()
+def simulated_annealing(distance_matrix, max_iter=100000, temp_start=1000):
+    N = len(distance_matrix)
+    current_tour = random.sample(range(N), N)  # Random initial tour
+    current_cost = path_cost_tour(current_tour, distance_matrix)
+    best_tour = current_tour
     best_cost = current_cost
 
-    temperature = initial_temperature
+    cost_history = [current_cost]
 
-    for iteration in range(max_iterations):
-        successor = get_successor(current_tour)
-        successor_cost = get_cost(successor, dist_matrix)
-
-        delta_cost = successor_cost - current_cost
-        acceptance_probability = (
-            np.exp(-delta_cost / temperature) if delta_cost > 0 else 1.0
+    for iteration in range(1, max_iter + 1):
+        i, j = sorted(random.sample(range(N), 2))
+        new_tour = (
+            current_tour[:i] + current_tour[i : j + 1][::-1] + current_tour[j + 1 :]
         )
 
-        if acceptance_probability > random.random():
-            current_tour = successor
-            current_cost = successor_cost
+        new_cost = path_cost_tour(new_tour, distance_matrix)
+        delta_cost = new_cost - current_cost
+        temperature = temp_start / iteration
+        acceptance_prob = np.exp(-delta_cost / temperature) if delta_cost > 0 else 1
+
+        if delta_cost < 0 or random.random() < acceptance_prob:
+            current_tour = new_tour
+            current_cost = new_cost
 
         if current_cost < best_cost:
-            best_tour = current_tour.copy()
+            best_tour = current_tour
             best_cost = current_cost
 
-        temperature *= cooling_rate
+        cost_history.append(best_cost)
 
-    return best_tour, best_cost
-
-
-def build_and_optimize_tour(
-    dist_matrix, initial_temperature, cooling_rate, max_iterations
-):
-    initial_tour = []
-    remaining_cities = set(range(len(dist_matrix)))
-
-    while remaining_cities:
-        initial_tour, _ = hill_climb_expand(initial_tour, remaining_cities, dist_matrix)
-        remaining_cities -= set(initial_tour)
-
-    best_tour, best_cost = simulated_annealing(
-        initial_tour, dist_matrix, initial_temperature, cooling_rate, max_iterations
-    )
-
-    return best_tour, best_cost
+    return best_tour, best_cost, cost_history
 
 
-initial_temperature = 40000
-cooling_rate = 0.9998
-max_iterations = 20000
+best_tour, best_cost, cost_history = simulated_annealing(D)
 
-final_tour, final_cost = build_and_optimize_tour(
-    dist_matrix, initial_temperature, cooling_rate, max_iterations
+print("Best Tour:", [cities[i] for i in best_tour])
+print("Best Cost:", best_cost)
+
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 2, 1)
+tour_coords = np.array(
+    [locations[cities[i]] for i in best_tour] + [locations[cities[best_tour[0]]]]
 )
+plt.plot(tour_coords[:, 1], tour_coords[:, 0], "o-", label="Optimized Tour")
+plt.title("Optimized Tour")
+for i, city in enumerate(best_tour):
+    plt.text(tour_coords[i, 1], tour_coords[i, 0], cities[city], fontsize=10)
 
-print("Final Optimized Tour:")
-for idx in final_tour:
-    print(tourist_locations[idx], end=" -> ")
-print(tourist_locations[final_tour[0]])
-print(f"Total Cost of the Best Tour: {final_cost} km")
+plt.subplot(1, 2, 2)
+plt.plot(cost_history)
+plt.title("Tour Cost Over Iterations")
+plt.xlabel("Iterations")
+plt.ylabel("Tour Cost")
+plt.show()
